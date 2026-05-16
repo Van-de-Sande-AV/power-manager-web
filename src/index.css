@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark-mode-first palette (the kiosk + tablet will mostly run dark). */
+    --background: 240 6% 6%;
+    --foreground: 0 0% 96%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 4% 64%;
+    --border: 240 5% 18%;
+    --ring: 217 91% 60%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --radius: 0.5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
