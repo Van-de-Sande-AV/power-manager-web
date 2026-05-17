@@ -111,13 +111,38 @@ function MeasurementsChart({
       byDevice.get(key)!.push([new Date(b.bucket).getTime(), b.value_avg]);
     }
 
-    const series = Array.from(byDevice.entries()).map(([key, points]) => ({
+    // Synthesise a "Totaal" line by summing per bucket across all devices.
+    // Buckets are 5-min aligned so timestamps line up cleanly; if a phase
+    // is missing in a bucket the total just leaves out that contribution.
+    const totalByTs = new Map<number, number>();
+    for (const b of buckets) {
+      const t = new Date(b.bucket).getTime();
+      totalByTs.set(t, (totalByTs.get(t) ?? 0) + b.value_avg);
+    }
+    const totalPoints: Array<[number, number]> = [...totalByTs.entries()]
+      .map(([t, v]) => [t, Math.round(v * 1000) / 1000] as [number, number])
+      .sort((a, b) => a[0] - b[0]);
+
+    const perDeviceSeries = Array.from(byDevice.entries()).map(([key, points]) => ({
       name: deviceById.get(key) ?? key,
       type: 'line' as const,
       smooth: true,
       symbol: 'none',
       data: points.sort((a, b) => a[0] - b[0]),
     }));
+
+    const series = [
+      {
+        name: 'Totaal',
+        type: 'line' as const,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 3 },
+        emphasis: { focus: 'series' as const },
+        data: totalPoints,
+      },
+      ...perDeviceSeries,
+    ];
 
     return {
       backgroundColor: 'transparent',
