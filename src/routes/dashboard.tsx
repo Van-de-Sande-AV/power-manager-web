@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { createRoute, redirect } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import ReactECharts from 'echarts-for-react';
@@ -93,6 +93,17 @@ function Dashboard() {
   );
 }
 
+const LEGEND_STORAGE_KEY = 'power-manager:chart-legend';
+
+function loadLegendSelection(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(LEGEND_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
 function MeasurementsChart({
   buckets,
   devices,
@@ -100,6 +111,9 @@ function MeasurementsChart({
   buckets: MeasurementBucket[];
   devices: Device[];
 }) {
+  const [legendSelected, setLegendSelected] =
+    useState<Record<string, boolean>>(loadLegendSelection);
+
   const option = useMemo(() => {
     const deviceById = new Map(devices.map((d) => [d.id, d.name]));
 
@@ -150,7 +164,7 @@ function MeasurementsChart({
         trigger: 'axis',
         valueFormatter: (v: number) => `${Math.round(v)} W`,
       },
-      legend: { textStyle: { color: '#a1a1aa' } },
+      legend: { textStyle: { color: '#a1a1aa' }, selected: legendSelected },
       grid: { left: 60, right: 20, top: 40, bottom: 40 },
       xAxis: {
         type: 'time',
@@ -167,7 +181,24 @@ function MeasurementsChart({
       },
       series,
     };
-  }, [buckets, devices]);
+  }, [buckets, devices, legendSelected]);
 
-  return <ReactECharts option={option} style={{ height: 400 }} theme="dark" />;
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: 400 }}
+      theme="dark"
+      onEvents={{
+        legendselectchanged: (params: { selected: Record<string, boolean> }) => {
+          setLegendSelected(params.selected);
+          try {
+            localStorage.setItem(LEGEND_STORAGE_KEY, JSON.stringify(params.selected));
+          } catch {
+            // localStorage might be disabled (private mode, quota); selection
+            // still works for this session, just not across reloads.
+          }
+        },
+      }}
+    />
+  );
 }
