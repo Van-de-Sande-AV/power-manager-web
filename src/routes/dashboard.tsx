@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { createRoute, redirect } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import ReactECharts from 'echarts-for-react';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchDevices, fetchMeasurements, type Device, type MeasurementBucket } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -19,8 +19,9 @@ export const dashboardRoute = createRoute({
 });
 
 function Dashboard() {
-  const today = startOfDay(new Date());
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  // Rolling 24h window — survives midnight without going blank.
+  const to = useMemo(() => new Date(), []);
+  const from = useMemo(() => new Date(to.getTime() - 24 * 60 * 60 * 1000), [to]);
 
   const devices = useQuery({
     queryKey: ['devices'],
@@ -28,11 +29,11 @@ function Dashboard() {
   });
 
   const measurements = useQuery({
-    queryKey: ['measurements', today.toISOString()],
+    queryKey: ['measurements', from.toISOString().slice(0, 13)], // refresh hourly key
     queryFn: () =>
       fetchMeasurements({
-        from: today.toISOString(),
-        to: tomorrow.toISOString(),
+        from: from.toISOString(),
+        to: to.toISOString(),
         metric: 'grid_power_w',
       }),
     refetchInterval: 60_000,
@@ -44,7 +45,7 @@ function Dashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Vermogen vandaag (W per device)</CardTitle>
+          <CardTitle>Vermogen laatste 24u (W per device)</CardTitle>
         </CardHeader>
         <CardContent>
           {measurements.isLoading && <p className="text-muted-foreground">Laden…</p>}
