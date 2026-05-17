@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Skip major-version bumps across the board. Vite, React, TanStack etc.
+    # each require coordinated bumps of their plugin/integration ecosystems;
+    # let them be done by hand when an upgrade is actually intended.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
