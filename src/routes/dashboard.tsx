@@ -34,7 +34,9 @@ function Dashboard() {
       fetchMeasurements({
         from: from.toISOString(),
         to: to.toISOString(),
-        metric: 'grid_power_w',
+        // No metric filter — chart shows everything power-shaped that the
+        // backend has for this household; non-W metrics get a separate
+        // panel later.
       }),
     refetchInterval: 60_000,
   });
@@ -117,19 +119,34 @@ function MeasurementsChart({
   const option = useMemo(() => {
     const deviceById = new Map(devices.map((d) => [d.id, d.name]));
 
+    // Only show numeric power metrics in this chart (W). Skip non-numeric
+    // state metrics like climate_state / switch_state — those belong on a
+    // separate panel later (state-timeline).
+    const POWER_METRICS = new Set([
+      'grid_power_w',
+      'pv_power_w',
+      'battery_power_w',
+      'airco_power_w',
+      'load_power_w',
+      'ev_power_w',
+      'appliance_power_w',
+    ]);
+    const powerBuckets = buckets.filter((b) => POWER_METRICS.has(b.metric));
+
     // Group buckets by device.
     const byDevice = new Map<string, Array<[number, number]>>();
-    for (const b of buckets) {
+    for (const b of powerBuckets) {
       const key = b.device_id ?? b.entity ?? 'unknown';
       if (!byDevice.has(key)) byDevice.set(key, []);
       byDevice.get(key)!.push([new Date(b.bucket).getTime(), b.value_avg]);
     }
 
-    // Synthesise a "Totaal" line by summing per bucket across all devices.
-    // Buckets are 5-min aligned so timestamps line up cleanly; if a phase
-    // is missing in a bucket the total just leaves out that contribution.
+    // "Totaal" = net household draw = sum of grid_power_w only. Including
+    // airco / submeter readings here would double-count: those flow through
+    // the same grid meter, so adding them would inflate the line.
     const totalByTs = new Map<number, number>();
-    for (const b of buckets) {
+    for (const b of powerBuckets) {
+      if (b.metric !== 'grid_power_w') continue;
       const t = new Date(b.bucket).getTime();
       totalByTs.set(t, (totalByTs.get(t) ?? 0) + b.value_avg);
     }
@@ -147,7 +164,7 @@ function MeasurementsChart({
 
     const series = [
       {
-        name: 'Totaal',
+        name: 'Totaal (net grid)',
         type: 'line' as const,
         smooth: true,
         symbol: 'none',
